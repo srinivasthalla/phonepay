@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+
+     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/srinivasthalla/Valentine-Day-DevOps-Project.git'
+            }
+        }   
+        
+        stage('Trivy FileSystem scan') {
+            steps {
+                sh"trivy fs . > trivyfs.txt"
+            }
+        }
+        
+        stage('Build & Tag Docker images') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker build -t srinivasthalla/valentineday:v1 . "
+                    }
+                }
+            }
+        }
+        
+        stage('Trivy images scan') {
+            steps {
+                sh "trivy image srinivasthalla/valentineday:v1 > trivy.txt"
+            }
+        }
+        
+        stage('push Docker image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker push srinivasthalla/valentineday:v1"
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy To Container') {
+            steps {
+                sh "docker run -d -p 8081:80 srinivasthalla/valentineday:v1"
+            }
+        }
+     }
+ }
